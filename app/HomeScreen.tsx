@@ -52,6 +52,14 @@ const HomeScreen = () => {
                     <Text style={[styles.buttonText, { color: '#C62828' }]}>Змінити пароль</Text>
                 </TouchableOpacity>
 
+                {/* 🔹 Кнопка Інструкція */}
+                <TouchableOpacity
+                    style={[styles.button, styles.whiteButton]}
+                    onPress={() => router.push('/instruction')}
+                >
+                    <Text style={[styles.buttonText, { color: '#C62828' }]}>Інструкція</Text>
+                </TouchableOpacity>
+
                 {/* 🔹 Кнопка виходу */}
                 <TouchableOpacity
                     style={[styles.button, styles.logoutButton]}

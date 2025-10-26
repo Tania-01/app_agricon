@@ -41,7 +41,7 @@ export default function ChangePasswordScreen() {
             );
 
             Alert.alert("Успіх", "Пароль змінено");
-            router.back(); // повертаємось назад
+            router.back();
         } catch (error: any) {
             console.error(error.response?.data || error.message);
             Alert.alert(
@@ -56,8 +56,9 @@ export default function ChangePasswordScreen() {
     return (
         <View style={styles.container}>
             <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-                <Text style={styles.backText}>⬅ Назад</Text>
+                <Text style={styles.backText}>⬅ На Головну</Text>
             </TouchableOpacity>
+
             <Text style={styles.title}>Змінити пароль</Text>
 
             <TextInput
@@ -94,36 +95,53 @@ const styles = StyleSheet.create({
         fontSize: 22,
         fontWeight: "bold",
         marginBottom: 20,
-        textAlign: "center"
+        textAlign: "center",
+        color: "#333",
     },
     input: {
         borderWidth: 1,
         borderColor: "#ccc",
         borderRadius: 8,
         padding: 12,
-        marginBottom: 20
+        marginBottom: 20,
+        fontSize: 16,
     },
     button: {
         backgroundColor: "#007AFF",
         padding: 15,
         borderRadius: 8,
-        alignItems: "center"
+        alignItems: "center",
+        shadowColor: "#007AFF",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+        elevation: 5,
     },
     buttonText: {
         color: "#fff",
         fontSize: 16,
-        fontWeight: "600"
-    },
-    backButton: {
-        marginTop: 25, // відступ від верхнього краю
-        marginBottom: 15, // відступ між кнопкою та заголовком
-        padding: 8,
-        alignSelf: "flex-start",
-    },
-    backText: {
-        fontSize: 16,
-        color: "#007AFF",
         fontWeight: "600",
     },
+    backButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#f0f0f0",
+        borderRadius: 10,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        alignSelf: "flex-start",
+        marginTop: 25,
+        marginBottom: 25,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+        elevation: 3,
+    },
+    backText: {
+        fontSize: 18,
+        color: "#007AFF",
+        fontWeight: "700",
+    },
 });
-

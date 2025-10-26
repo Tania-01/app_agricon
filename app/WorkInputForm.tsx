@@ -35,7 +35,6 @@ export default function WorksScreen() {
         fetchWorks();
     }, []);
 
-    // 🔹 автоматичний перехід якщо немає subname або category
     useEffect(() => {
         if (works.length > 0 && selectedObject) {
             const objectWorks = works.filter((w) => w.object === selectedObject);
@@ -56,7 +55,6 @@ export default function WorksScreen() {
         }
     }, [works, selectedObject]);
 
-    // 🔹 фільтри
     const cities = Array.from(new Set(works.map((w) => w.city)));
     const objects = selectedCity
         ? Array.from(new Set(works.filter((w) => w.city === selectedCity).map((w) => w.object)))
@@ -77,9 +75,8 @@ export default function WorksScreen() {
 
     return (
         <ScrollView style={styles.container}>
-            {/* 🔹 Назад */}
             <TouchableOpacity style={styles.backButton} onPress={() => router.push("/HomeScreen")}>
-                <Text style={styles.backText}>⬅ Назад</Text>
+                <Text style={styles.backText}>⬅ На Головну</Text>
             </TouchableOpacity>
 
             {!selectedCity ? (
@@ -89,8 +86,8 @@ export default function WorksScreen() {
                         <Text style={styles.emptyText}>Немає доступних міст</Text>
                     ) : (
                         cities.map((city, i) => (
-                            <TouchableOpacity key={i} style={styles.objectButton} onPress={() => setSelectedCity(city)}>
-                                <Text style={styles.objectText}>{city}</Text>
+                            <TouchableOpacity key={i} style={styles.bigButton} onPress={() => setSelectedCity(city)}>
+                                <Text style={styles.bigButtonText}>{city}</Text>
                             </TouchableOpacity>
                         ))
                     )}
@@ -102,8 +99,8 @@ export default function WorksScreen() {
                         <Text style={styles.emptyText}>Немає об’єктів у цьому місті</Text>
                     ) : (
                         objects.map((obj, i) => (
-                            <TouchableOpacity key={i} style={styles.objectButton} onPress={() => setSelectedObject(obj)}>
-                                <Text style={styles.objectText}>{obj}</Text>
+                            <TouchableOpacity key={i} style={styles.bigButton} onPress={() => setSelectedObject(obj)}>
+                                <Text style={styles.bigButtonText}>{obj}</Text>
                             </TouchableOpacity>
                         ))
                     )}
@@ -117,7 +114,7 @@ export default function WorksScreen() {
                     {subnames.map((sub, i) => (
                         <TouchableOpacity
                             key={i}
-                            style={styles.objectButton}
+                            style={styles.bigButton}
                             onPress={() => {
                                 const hasCategory = works.some(
                                     (w) => w.object === selectedObject && w.subname === sub && w.category
@@ -132,7 +129,7 @@ export default function WorksScreen() {
                                 }
                             }}
                         >
-                            <Text style={styles.objectText}>{sub}</Text>
+                            <Text style={styles.bigButtonText}>{sub}</Text>
                         </TouchableOpacity>
                     ))}
                     <TouchableOpacity style={styles.backCityButton} onPress={() => setSelectedObject(null)}>
@@ -145,7 +142,7 @@ export default function WorksScreen() {
                     {categories.map((cat, i) => (
                         <TouchableOpacity
                             key={i}
-                            style={styles.objectButton}
+                            style={styles.bigButton}
                             onPress={() =>
                                 router.push({
                                     pathname: "/object/[name]",
@@ -157,7 +154,7 @@ export default function WorksScreen() {
                                 })
                             }
                         >
-                            <Text style={styles.objectText}>{cat}</Text>
+                            <Text style={styles.bigButtonText}>{cat}</Text>
                         </TouchableOpacity>
                     ))}
                     <TouchableOpacity style={styles.backCityButton} onPress={() => setSelectedSubname(null)}>
@@ -175,19 +172,60 @@ export default function WorksScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, padding: 16, backgroundColor: "#fff" },
-    backButton: { marginTop: 25, marginBottom: 16, padding: 8, alignSelf: "flex-start" },
-    backCityButton: { marginTop: 20, padding: 8, alignSelf: "flex-start" },
-    backText: { fontSize: 16, color: "#c4001d", fontWeight: "600" },
-    title: { fontSize: 24, fontWeight: "bold", marginBottom: 20, color: "#c4001d" },
-    objectButton: {
-        backgroundColor: "#fff",
-        borderWidth: 1,
-        borderColor: "#c4001d",
-        padding: 12,
-        borderRadius: 8,
-        marginBottom: 12,
+    container: { flex: 1, padding: 20, backgroundColor: "#fff" },
+
+    // 🔹 Кнопка "Назад" зроблена великою, з тінню і плавною взаємодією
+    backButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#f0f0f0",
+        borderRadius: 12,
+        paddingVertical: 14,
+        paddingHorizontal: 25,
+        alignSelf: "flex-start",
+        marginTop: 25,
+        marginBottom: 25,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 4,
     },
-    objectText: { fontSize: 18, color: "#c4001d", fontWeight: "600" },
-    emptyText: { fontSize: 16, color: "#333", marginBottom: 12 },
+    backCityButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#f0f0f0",
+        borderRadius: 12,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        alignSelf: "flex-start",
+        marginTop: 20,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 3,
+        elevation: 3,
+    },
+    backText: { fontSize: 18, color: "#c4001d", fontWeight: "700" },
+
+    title: { fontSize: 26, fontWeight: "bold", marginBottom: 25, color: "#c4001d", textAlign: "center" },
+
+    bigButton: {
+        backgroundColor: "#fff",
+        borderWidth: 2,
+        borderColor: "#c4001d",
+        paddingVertical: 20,
+        borderRadius: 12,
+        marginBottom: 15,
+        alignItems: "center",
+        justifyContent: "center",
+        shadowColor: "#000",
+        shadowOpacity: 0.1,
+        shadowRadius: 6,
+        elevation: 3,
+    },
+    bigButtonText: { fontSize: 20, color: "#c4001d", fontWeight: "700", textAlign: "center" },
+    emptyText: { fontSize: 18, color: "#555", marginBottom: 12, textAlign: "center" },
 });

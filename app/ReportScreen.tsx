@@ -8,11 +8,14 @@ import {
     Alert,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as FileSystem from "expo-file-system/legacy"; // 🔹 legacy API
+import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { IconButton } from "react-native-paper";
 import { useRouter } from "expo-router";
 import axios from "axios";
+import { LogBox } from "react-native";
+
+LogBox.ignoreLogs(["perform input operation requires a valid sessionID"]);
 
 export default function ReportsScreen() {
     const [works, setWorks] = useState<any[]>([]);
@@ -28,7 +31,6 @@ export default function ReportsScreen() {
         return { Authorization: `Bearer ${token}` };
     };
 
-    // отримуємо всі роботи для користувача
     const fetchWorks = async () => {
         try {
             const headers = await getAuthHeader();
@@ -46,10 +48,16 @@ export default function ReportsScreen() {
         fetchWorks();
     }, []);
 
-    const cities = Array.from(new Set(works.map(w => w.city)));
+    const cities = Array.from(new Set(works.map((w) => w.city)));
     const objects = selectedCity
-        ? Array.from(new Set(works.filter(w => w.city === selectedCity).map(w => w.object)))
+        ? Array.from(
+            new Set(works.filter((w) => w.city === selectedCity).map((w) => w.object))
+        )
         : [];
+
+    const sanitizeObjectName = (name: string) => {
+        return name.replace(/[*?:\\/\[\]]/g, "_");
+    };
 
     const blobToBase64 = (blob: Blob): Promise<string> =>
         new Promise((resolve, reject) => {
@@ -73,12 +81,12 @@ export default function ReportsScreen() {
             const body = {
                 object: selectedObject,
                 type: selectedType,
-                userOnly: true, // 🔹 тільки для поточного користувача
+                userOnly: true,
                 format,
             };
 
             const response = await fetch(
-                "https://agricon-backend-1.onrender.com/works/reports",
+                "https://agricon-backend-1.onrender.com/works/report",
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json", ...headers },
@@ -94,7 +102,8 @@ export default function ReportsScreen() {
             const blob = await response.blob();
             const base64Data = await blobToBase64(blob);
 
-            const fileUri = `${FileSystem.documentDirectory}report.xlsx`;
+            const safeName = sanitizeObjectName(selectedObject);
+            const fileUri = `${FileSystem.documentDirectory}${safeName}_report.xlsx`;
 
             await FileSystem.writeAsStringAsync(fileUri, base64Data, {
                 encoding: FileSystem.EncodingType.Base64,
@@ -103,11 +112,15 @@ export default function ReportsScreen() {
             if (await Sharing.isAvailableAsync()) {
                 await Sharing.shareAsync(fileUri);
             } else {
-                Alert.alert("Файл збережено", `Файл: ${fileUri}`);
+                setTimeout(() => {
+                    Alert.alert("Файл збережено", `Файл: ${fileUri}`);
+                }, 100);
             }
         } catch (error: any) {
             console.error(error);
-            Alert.alert("Помилка", error.message || "Щось пішло не так");
+            setTimeout(() => {
+                Alert.alert("Помилка", error.message || "Щось пішло не так");
+            }, 100);
         } finally {
             setLoading(false);
         }
@@ -115,7 +128,10 @@ export default function ReportsScreen() {
 
     return (
         <ScrollView style={styles.container}>
-            <TouchableOpacity style={styles.backButton} onPress={() => router.push("/HomeScreen")}>
+            <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => router.push("/HomeScreen")}
+            >
                 <Text style={styles.backText}>⬅ Назад</Text>
             </TouchableOpacity>
 
@@ -126,7 +142,11 @@ export default function ReportsScreen() {
                         <Text style={styles.emptyText}>Немає доступних міст</Text>
                     ) : (
                         cities.map((city, i) => (
-                            <TouchableOpacity key={i} style={styles.itemButton} onPress={() => setSelectedCity(city)}>
+                            <TouchableOpacity
+                                key={i}
+                                style={styles.itemButton}
+                                onPress={() => setSelectedCity(city)}
+                            >
                                 <Text style={styles.itemText}>{city}</Text>
                             </TouchableOpacity>
                         ))
@@ -139,25 +159,41 @@ export default function ReportsScreen() {
                         <Text style={styles.emptyText}>Немає об’єктів у цьому місті</Text>
                     ) : (
                         objects.map((obj, i) => (
-                            <TouchableOpacity key={i} style={styles.itemButton} onPress={() => setSelectedObject(obj)}>
+                            <TouchableOpacity
+                                key={i}
+                                style={styles.itemButton}
+                                onPress={() => setSelectedObject(obj)}
+                            >
                                 <Text style={styles.itemText}>{obj}</Text>
                             </TouchableOpacity>
                         ))
                     )}
-                    <TouchableOpacity style={styles.backCityButton} onPress={() => setSelectedCity(null)}>
+                    <TouchableOpacity
+                        style={styles.backCityButton}
+                        onPress={() => setSelectedCity(null)}
+                    >
                         <Text style={styles.backText}>⬅ Повернутись до міст</Text>
                     </TouchableOpacity>
                 </>
             ) : !selectedType ? (
                 <>
                     <Text style={styles.title}>Оберіть період звіту</Text>
-                    <TouchableOpacity style={styles.itemButton} onPress={() => setSelectedType("month")}>
+                    <TouchableOpacity
+                        style={styles.itemButton}
+                        onPress={() => setSelectedType("month")}
+                    >
                         <Text style={styles.itemText}>За місяць</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.itemButton} onPress={() => setSelectedType("all")}>
+                    <TouchableOpacity
+                        style={styles.itemButton}
+                        onPress={() => setSelectedType("all")}
+                    >
                         <Text style={styles.itemText}>За весь час</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.backCityButton} onPress={() => setSelectedObject(null)}>
+                    <TouchableOpacity
+                        style={styles.backCityButton}
+                        onPress={() => setSelectedObject(null)}
+                    >
                         <Text style={styles.backText}>⬅ Повернутись до об’єктів</Text>
                     </TouchableOpacity>
                 </>
@@ -171,13 +207,19 @@ export default function ReportsScreen() {
                     {loading ? (
                         <ActivityIndicator size="large" color="#c4001d" />
                     ) : (
-                        <TouchableOpacity style={styles.downloadButton} onPress={() => handleExport("excel")}>
-                            <IconButton icon="microsoft-excel" size={20} iconColor="#fff" />
+                        <TouchableOpacity
+                            style={styles.downloadButton}
+                            onPress={() => handleExport("excel")}
+                        >
+                            <IconButton icon="microsoft-excel" size={22} iconColor="#fff" />
                             <Text style={styles.buttonText}>Завантажити Excel</Text>
                         </TouchableOpacity>
                     )}
 
-                    <TouchableOpacity style={styles.backCityButton} onPress={() => setSelectedType(null)}>
+                    <TouchableOpacity
+                        style={styles.backCityButton}
+                        onPress={() => setSelectedType(null)}
+                    >
                         <Text style={styles.backText}>⬅ Повернутись до вибору періоду</Text>
                     </TouchableOpacity>
                 </>
@@ -187,30 +229,56 @@ export default function ReportsScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, padding: 16, backgroundColor: "#fff" },
-    backButton: { marginTop: 25, marginBottom: 16, padding: 8, alignSelf: "flex-start" },
-    backCityButton: { marginTop: 20, padding: 8, alignSelf: "flex-start" },
-    backText: { fontSize: 16, color: "#c4001d", fontWeight: "600" },
-    title: { fontSize: 24, fontWeight: "bold", marginBottom: 20, color: "#c4001d" },
-    subtitle: { fontSize: 18, marginBottom: 25, color: "#444" },
+    container: { flex: 1, padding: 20, backgroundColor: "#fff" },
+
+    backButton: {
+        marginTop: 35,
+        marginBottom: 25,
+        paddingVertical: 14,
+        paddingHorizontal: 22,
+        alignSelf: "flex-start",
+        backgroundColor: "#c4001d",
+        borderRadius: 12,
+    },
+    backCityButton: {
+        marginTop: 25,
+        paddingVertical: 14,
+        paddingHorizontal: 22,
+        alignSelf: "flex-start",
+        backgroundColor: "#c4001d",
+        borderRadius: 12,
+    },
+    backText: { fontSize: 18, color: "#fff", fontWeight: "bold" },
+
+    title: {
+        fontSize: 26,
+        fontWeight: "bold",
+        marginBottom: 25,
+        color: "#c4001d",
+    },
+    subtitle: { fontSize: 20, marginBottom: 25, color: "#444" },
+
     itemButton: {
         backgroundColor: "#fff",
-        borderWidth: 1,
+        borderWidth: 2,
         borderColor: "#c4001d",
-        padding: 12,
-        borderRadius: 8,
-        marginBottom: 12,
+        paddingVertical: 18,
+        paddingHorizontal: 14,
+        borderRadius: 12,
+        marginBottom: 16,
     },
-    itemText: { fontSize: 18, color: "#c4001d", fontWeight: "600" },
-    emptyText: { fontSize: 16, color: "#333", marginBottom: 12 },
+    itemText: { fontSize: 20, color: "#c4001d", fontWeight: "600", textAlign: "center" },
+
+    emptyText: { fontSize: 18, color: "#333", marginBottom: 12 },
+
     downloadButton: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
         backgroundColor: "#c4001d",
-        paddingVertical: 12,
-        borderRadius: 8,
-        marginBottom: 12,
+        paddingVertical: 16,
+        borderRadius: 12,
+        marginBottom: 20,
     },
-    buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+    buttonText: { color: "#fff", fontSize: 18, fontWeight: "700" },
 });
