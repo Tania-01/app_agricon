@@ -65,11 +65,13 @@ export default function ObjectDetails() {
 
     const [works, setWorks] = useState<any[]>([]);
     const [selectedWork, setSelectedWork] = useState<any>(null);
-
     const [modalVisible, setModalVisible] = useState(false);
     const [amount, setAmount] = useState("");
+    const [isEditing, setIsEditing] = useState(false);
+    const [showHint, setShowHint] = useState(false);
 
     const scrollY = useRef(new Animated.Value(0)).current;
+    const hint = "Вводьте число з крапкою або комою, напр. 39,3";
 
     /* ---------------- AUTH ---------------- */
     const getAuthHeader = async () => {
@@ -96,9 +98,8 @@ export default function ObjectDetails() {
         fetchWorks();
     }, [name]);
 
-    /* ---------------- ADD (FIXED FOR 39,3) ---------------- */
+    /* ---------------- ADD ---------------- */
     const handleAdd = async () => {
-        // 🔥 ГОЛОВНЕ ВИПРАВЛЕННЯ
         const normalized = amount.replace(",", ".");
         const num = Number(normalized);
 
@@ -110,10 +111,7 @@ export default function ObjectDetails() {
             const headers = await getAuthHeader();
             await axios.post(
                 "https://agricon-backend-1.onrender.com/works/add",
-                {
-                    workId: selectedWork._id,
-                    amount: num,
-                },
+                { workId: selectedWork._id, amount: num },
                 { headers }
             );
             setModalVisible(false);
@@ -121,6 +119,39 @@ export default function ObjectDetails() {
             fetchWorks();
         } catch (e) {
             Alert.alert("Помилка додавання");
+        }
+    };
+
+    /* ---------------- EDIT ---------------- */
+    const handleEdit = async () => {
+        const normalized = amount.replace(",", ".");
+        const num = Number(normalized);
+
+        if (isNaN(num) || num < 0) {
+            return Alert.alert("Невірна кількість", "Введіть число, наприклад 39,3");
+        }
+
+        try {
+            const headers = await getAuthHeader();
+            const res = await axios.put(
+                "https://agricon-backend-1.onrender.com/works/edit-last",
+                { workId: selectedWork._id, amount: num },
+                { headers }
+            );
+
+            setWorks(prev =>
+                prev.map(w =>
+                    w._id === selectedWork._id
+                        ? { ...w, done: res.data.work.done, history: res.data.work.history }
+                        : w
+                )
+            );
+
+            setModalVisible(false);
+            setAmount("");
+            setIsEditing(false);
+        } catch (e: any) {
+            Alert.alert(e.response?.data?.message || "Помилка при редагуванні");
         }
     };
 
@@ -132,7 +163,6 @@ export default function ObjectDetails() {
                 <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
                     <Text style={styles.backText}>⬅</Text>
                 </TouchableOpacity>
-
                 <Text style={styles.headerTitle}>{name}</Text>
             </Animated.View>
 
@@ -151,6 +181,8 @@ export default function ObjectDetails() {
                         index={i}
                         onPress={() => {
                             setSelectedWork(work);
+                            setIsEditing(false);
+                            setAmount("");
                             setModalVisible(true);
                         }}
                     />
@@ -170,31 +202,98 @@ export default function ObjectDetails() {
                                     {selectedWork?.name}
                                 </Text>
 
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="Кількість (напр. 39,3)"
-                                    keyboardType={
-                                        Platform.OS === "ios" ? "decimal-pad" : "numeric"
-                                    }
-                                    value={amount}
-                                    onChangeText={setAmount}
-                                />
+                                {!isEditing ? (
+                                    <>
+                                        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+                                            <TextInput
+                                                style={styles.input}
+                                                placeholder="Кількість (напр. 39,3)"
+                                                keyboardType={Platform.OS === "ios" ? "decimal-pad" : "numeric"}
+                                                value={amount}
+                                                onChangeText={setAmount}
+                                            />
+                                            <TouchableOpacity
+                                                style={styles.hintBtn}
+                                                onPress={() => {
+                                                    setShowHint(true);
+                                                    setTimeout(() => setShowHint(false), 3000);
+                                                }}
+                                            >
+                                                <Text>❓</Text>
+                                            </TouchableOpacity>
+                                        </View>
 
-                                <View style={styles.modalRow}>
-                                    <TouchableOpacity
-                                        style={styles.grayBtn}
-                                        onPress={() => setModalVisible(false)}
-                                    >
-                                        <Text>Скасувати</Text>
-                                    </TouchableOpacity>
+                                        {showHint && (
+                                            <View style={styles.hintContainer}>
+                                                <Text style={styles.hintText}>{hint}</Text>
+                                            </View>
+                                        )}
 
-                                    <TouchableOpacity
-                                        style={styles.redBtn}
-                                        onPress={handleAdd}
-                                    >
-                                        <Text style={{ color: "#fff" }}>Додати</Text>
-                                    </TouchableOpacity>
-                                </View>
+                                        <View style={{ flexDirection: "row", marginBottom: 10 }}>
+                                            <TouchableOpacity
+                                                style={[styles.grayBtn, { marginRight: 8 }]}
+                                                onPress={() => setModalVisible(false)}
+                                            >
+                                                <Text>Скасувати</Text>
+                                            </TouchableOpacity>
+
+                                            <TouchableOpacity
+                                                style={styles.redBtn}
+                                                onPress={handleAdd}
+                                            >
+                                                <Text style={{ color: "#fff" }}>Додати</Text>
+                                            </TouchableOpacity>
+                                        </View>
+
+                                        <Text style={{ marginBottom: 8, color: "#555" }}>
+                                            Щоб змінити останній запис, натисніть «Редагувати».
+                                        </Text>
+
+                                        <TouchableOpacity
+                                            style={[styles.greenBtn, { marginBottom: 10 }]}
+                                            onPress={() => {
+                                                setIsEditing(true);
+                                                setAmount(
+                                                    selectedWork.history?.length
+                                                        ? selectedWork.history[selectedWork.history.length - 1].amount.toString()
+                                                        : ""
+                                                );
+                                            }}
+                                        >
+                                            <Text style={{ color: "#fff" }}>✏️ Редагувати</Text>
+                                        </TouchableOpacity>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Text style={{ marginBottom: 8, color: "#555" }}>
+                                            Редагування останнього запису:
+                                        </Text>
+
+                                        {/* МАЛЕНЬКИЙ INPUT */}
+                                        <TextInput
+                                            style={[styles.input]}
+                                            keyboardType={Platform.OS === "ios" ? "decimal-pad" : "numeric"}
+                                            value={amount}
+                                            onChangeText={setAmount}
+                                        />
+
+                                        <View style={{ flexDirection: "row", marginTop: 80 }}>
+                                            <TouchableOpacity
+                                                style={[styles.grayBtn, { marginRight: 8 }]}
+                                                onPress={() => setIsEditing(false)}
+                                            >
+                                                <Text>Скасувати</Text>
+                                            </TouchableOpacity>
+
+                                            <TouchableOpacity
+                                                style={styles.greenBtn}
+                                                onPress={handleEdit}
+                                            >
+                                                <Text style={{ color: "#fff" }}>Підтвердити</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </>
+                                )}
                             </View>
                         </View>
                     </TouchableWithoutFeedback>
@@ -261,24 +360,22 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     modalBox: {
+        height: 350,
         width: "85%",
         backgroundColor: "#fff",
         borderRadius: 16,
         padding: 20,
+        position: "relative",
     },
     modalTitle: { fontSize: 20, fontWeight: "700", marginBottom: 12 },
 
     input: {
+        height:40,
         borderWidth: 1,
         borderColor: "#c4001d",
         borderRadius: 10,
-        padding: 10,
-        marginBottom: 16,
-    },
-
-    modalRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
+        paddingHorizontal: 10,
+        flex: 1,
     },
 
     grayBtn: {
@@ -286,7 +383,6 @@ const styles = StyleSheet.create({
         backgroundColor: "#ccc",
         borderRadius: 10,
         flex: 1,
-        marginRight: 8,
         alignItems: "center",
     },
 
@@ -296,5 +392,37 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         flex: 1,
         alignItems: "center",
+    },
+
+    greenBtn: {
+        color: 'white',
+        padding: 12,
+        backgroundColor: "#006400",
+        borderRadius: 15,
+        flex: 1,
+        alignItems: "center",
+        marginBottom: 10,
+    },
+
+    hintContainer: {
+        position: "absolute",
+        top: 10,
+        left: 20,
+        right: 20,
+        backgroundColor: "#333",
+        padding: 10,
+        borderRadius: 10,
+        alignItems: "center",
+        zIndex: 999,
+    },
+    hintText: {
+        color: "#fff",
+        fontSize: 14,
+    },
+    hintBtn: {
+        marginLeft: 8,
+        padding: 8,
+        backgroundColor: "#eee",
+        borderRadius: 8,
     },
 });

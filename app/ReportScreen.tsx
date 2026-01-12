@@ -6,6 +6,8 @@ import {
     StyleSheet,
     ActivityIndicator,
     Alert,
+    Modal,
+    View,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
@@ -24,6 +26,9 @@ export default function ReportsScreen() {
     const [periodType, setPeriodType] = useState<"currentMonth" | "all" | "specific" | null>(null);
     const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+
+    const [previewModal, setPreviewModal] = useState(false);
+    const [previewData, setPreviewData] = useState<any[]>([]);
 
     const router = useRouter();
 
@@ -139,6 +144,46 @@ export default function ReportsScreen() {
         }
     };
 
+    const handlePreview = () => {
+        if (!selectedObject) {
+            return Alert.alert("Помилка", "Оберіть об’єкт");
+        }
+
+        const objectWorks = works.filter(w => w.object === selectedObject);
+
+        const filteredWorks = objectWorks.map(w => {
+            let filteredHistory = w.history || [];
+
+            if (periodType === "specific" && selectedMonth) {
+                filteredHistory = filteredHistory.filter(h => {
+                    const d = new Date(h.date);
+                    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+                    return ym === selectedMonth;
+                });
+            }
+
+            if (periodType === "currentMonth") {
+                const now = new Date();
+                const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+                filteredHistory = filteredHistory.filter(h => {
+                    const d = new Date(h.date);
+                    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+                    return ym === currentYearMonth;
+                });
+            }
+
+            return { ...w, history: filteredHistory };
+        }).filter(w => w.history.length > 0);
+
+        if (filteredWorks.length === 0) {
+            Alert.alert("Немає даних", "За обраний період даних немає");
+            return;
+        }
+
+        setPreviewData(filteredWorks);
+        setPreviewModal(true);
+    };
+
     return (
         <ScrollView style={styles.container}>
             <TouchableOpacity style={styles.backButton} onPress={goBack}>
@@ -220,6 +265,13 @@ export default function ReportsScreen() {
                         </>
                     )}
 
+                    <TouchableOpacity
+                        style={styles.previewButton}
+                        onPress={handlePreview}
+                    >
+                        <Text style={styles.previewText}>Попередній перегляд</Text>
+                    </TouchableOpacity>
+
                     {(periodType !== "specific" || selectedMonth) && (
                         <>
                             <Text style={styles.title}>Звіт для: {selectedObject}</Text>
@@ -246,6 +298,33 @@ export default function ReportsScreen() {
                     )}
                 </>
             )}
+
+            {/* PREVIEW MODAL */}
+            <Modal visible={previewModal} transparent animationType="fade">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalBox}>
+                        <Text style={styles.modalTitle}>Попередній перегляд</Text>
+                        <ScrollView>
+                            {previewData.map((w) => (
+                                <View key={w._id} style={{ marginBottom: 12 }}>
+                                    <Text style={{ fontWeight: "700" }}>{w.name}</Text>
+                                    {w.history.map((h, i) => (
+                                        <Text key={i}>
+                                            {new Date(h.date).toLocaleDateString()} — {h.amount} {h.unit}
+                                        </Text>
+                                    ))}
+                                </View>
+                            ))}
+                        </ScrollView>
+                        <TouchableOpacity
+                            style={[styles.grayBtn, { marginTop: 12 }]}
+                            onPress={() => setPreviewModal(false)}
+                        >
+                            <Text>Закрити</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </ScrollView>
     );
 }
@@ -290,4 +369,35 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     buttonText: { color: "#fff", fontSize: 16, fontWeight: "700", textAlign: "center" },
+
+    previewButton: {
+        backgroundColor: "#006400",
+        paddingVertical: 14,
+        borderRadius: 12,
+        marginBottom: 20,
+    },
+    previewText: { color: "#fff", fontSize: 18, fontWeight: "700", textAlign: "center" },
+
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.45)",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 20,
+    },
+    modalBox: {
+        width: "100%",
+        maxHeight: "80%",
+        backgroundColor: "#fff",
+        borderRadius: 16,
+        padding: 20,
+    },
+    modalTitle: { fontSize: 20, fontWeight: "700", marginBottom: 12 },
+
+    grayBtn: {
+        padding: 12,
+        backgroundColor: "#ccc",
+        borderRadius: 10,
+        alignItems: "center",
+    },
 });
