@@ -21,9 +21,19 @@ export default function ReportsScreen() {
     const [works, setWorks] = useState<any[]>([]);
     const [selectedCity, setSelectedCity] = useState<string | null>(null);
     const [selectedObject, setSelectedObject] = useState<string | null>(null);
-    const [selectedType, setSelectedType] = useState<"month" | "all" | null>(null);
+    const [periodType, setPeriodType] = useState<"currentMonth" | "all" | "specific" | null>(null);
+    const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+
     const router = useRouter();
+
+    const goBack = () => {
+        if (selectedMonth) return setSelectedMonth(null);
+        if (periodType) return setPeriodType(null);
+        if (selectedObject) return setSelectedObject(null);
+        if (selectedCity) return setSelectedCity(null);
+        router.back();
+    };
 
     const getAuthHeader = async () => {
         const token = await AsyncStorage.getItem("token");
@@ -50,26 +60,32 @@ export default function ReportsScreen() {
 
     const cities = Array.from(new Set(works.map((w) => w.city)));
     const objects = selectedCity
-        ? Array.from(
-            new Set(works.filter((w) => w.city === selectedCity).map((w) => w.object))
-        )
+        ? Array.from(new Set(works.filter((w) => w.city === selectedCity).map((w) => w.object)))
         : [];
 
-    const sanitizeObjectName = (name: string) => {
-        return name.replace(/[*?:\\/\[\]]/g, "_");
-    };
+    const months = Array.from(
+        new Set(
+            works.flatMap(w =>
+                w.history?.map(h => {
+                    const d = new Date(h.date);
+                    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+                }) || []
+            )
+        )
+    ).sort((a, b) => (a < b ? 1 : -1));
+
+    const sanitizeObjectName = (name) => name.replace(/[*?:\\/\[\]]/g, "_");
 
     const blobToBase64 = (blob: Blob): Promise<string> =>
         new Promise((resolve, reject) => {
             const reader = new FileReader();
-            reader.onloadend = () =>
-                resolve(reader.result?.toString().split(",")[1] || "");
+            reader.onloadend = () => resolve(reader.result?.toString().split(",")[1] || "");
             reader.onerror = reject;
             reader.readAsDataURL(blob);
         });
 
     const handleExport = async (format: "excel") => {
-        if (!selectedObject || !selectedType) {
+        if (!selectedObject || !periodType || (periodType === "specific" && !selectedMonth)) {
             Alert.alert("Помилка", "Виберіть об’єкт і період для звіту");
             return;
         }
@@ -80,7 +96,8 @@ export default function ReportsScreen() {
             const headers = await getAuthHeader();
             const body = {
                 object: selectedObject,
-                type: selectedType,
+                type: periodType,
+                month: periodType === "specific" ? selectedMonth : null,
                 userOnly: true,
                 format,
             };
@@ -112,15 +129,11 @@ export default function ReportsScreen() {
             if (await Sharing.isAvailableAsync()) {
                 await Sharing.shareAsync(fileUri);
             } else {
-                setTimeout(() => {
-                    Alert.alert("Файл збережено", `Файл: ${fileUri}`);
-                }, 100);
+                Alert.alert("Файл збережено", `Файл: ${fileUri}`);
             }
         } catch (error: any) {
             console.error(error);
-            setTimeout(() => {
-                Alert.alert("Помилка", error.message || "Щось пішло не так");
-            }, 100);
+            Alert.alert("Помилка", error.message || "Щось пішло не так");
         } finally {
             setLoading(false);
         }
@@ -128,10 +141,7 @@ export default function ReportsScreen() {
 
     return (
         <ScrollView style={styles.container}>
-            <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => router.push("/HomeScreen")}
-            >
+            <TouchableOpacity style={styles.backButton} onPress={goBack}>
                 <Text style={styles.backText}>⬅ Назад</Text>
             </TouchableOpacity>
 
@@ -140,88 +150,100 @@ export default function ReportsScreen() {
                     <Text style={styles.title}>Місцерозташування</Text>
                     {cities.length === 0 ? (
                         <Text style={styles.emptyText}>Немає доступних міст</Text>
-                    ) : (
-                        cities.map((city, i) => (
-                            <TouchableOpacity
-                                key={i}
-                                style={styles.itemButton}
-                                onPress={() => setSelectedCity(city)}
-                            >
-                                <Text style={styles.itemText}>{city}</Text>
-                            </TouchableOpacity>
-                        ))
-                    )}
+                    ) : cities.map((city, i) => (
+                        <TouchableOpacity
+                            key={i}
+                            style={styles.itemButton}
+                            onPress={() => setSelectedCity(city)}
+                        >
+                            <Text style={styles.itemText}>{city}</Text>
+                        </TouchableOpacity>
+                    ))}
                 </>
             ) : !selectedObject ? (
                 <>
                     <Text style={styles.title}>Об’єкти в місті: {selectedCity}</Text>
                     {objects.length === 0 ? (
                         <Text style={styles.emptyText}>Немає об’єктів у цьому місті</Text>
-                    ) : (
-                        objects.map((obj, i) => (
-                            <TouchableOpacity
-                                key={i}
-                                style={styles.itemButton}
-                                onPress={() => setSelectedObject(obj)}
-                            >
-                                <Text style={styles.itemText}>{obj}</Text>
-                            </TouchableOpacity>
-                        ))
-                    )}
-                    <TouchableOpacity
-                        style={styles.backCityButton}
-                        onPress={() => setSelectedCity(null)}
-                    >
-                        <Text style={styles.backText}>⬅ Повернутись до міст</Text>
-                    </TouchableOpacity>
+                    ) : objects.map((obj, i) => (
+                        <TouchableOpacity
+                            key={i}
+                            style={styles.itemButton}
+                            onPress={() => setSelectedObject(obj)}
+                        >
+                            <Text style={styles.itemText}>{obj}</Text>
+                        </TouchableOpacity>
+                    ))}
                 </>
-            ) : !selectedType ? (
+            ) : !periodType ? (
                 <>
                     <Text style={styles.title}>Оберіть період звіту</Text>
-                    <TouchableOpacity
-                        style={styles.itemButton}
-                        onPress={() => setSelectedType("month")}
-                    >
-                        <Text style={styles.itemText}>За місяць</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.itemButton}
-                        onPress={() => setSelectedType("all")}
-                    >
-                        <Text style={styles.itemText}>За весь час</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.backCityButton}
-                        onPress={() => setSelectedObject(null)}
-                    >
-                        <Text style={styles.backText}>⬅ Повернутись до об’єктів</Text>
-                    </TouchableOpacity>
+                    {["currentMonth", "all", "specific"].map((type) => (
+                        <TouchableOpacity
+                            key={type}
+                            style={styles.itemButton}
+                            onPress={() => setPeriodType(type as any)}
+                        >
+                            <Text style={styles.itemText}>
+                                {type === "currentMonth" ? "За поточний місяць" :
+                                    type === "all" ? "За весь час" : "Оберіть місяць"}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
                 </>
             ) : (
                 <>
-                    <Text style={styles.title}>Звіт для:</Text>
-                    <Text style={styles.subtitle}>
-                        {selectedObject} ({selectedType === "month" ? "За місяць" : "За весь час"})
-                    </Text>
-
-                    {loading ? (
-                        <ActivityIndicator size="large" color="#c4001d" />
-                    ) : (
-                        <TouchableOpacity
-                            style={styles.downloadButton}
-                            onPress={() => handleExport("excel")}
-                        >
-                            <IconButton icon="microsoft-excel" size={22} iconColor="#fff" />
-                            <Text style={styles.buttonText}>Завантажити Excel</Text>
-                        </TouchableOpacity>
+                    {periodType === "specific" && (
+                        <>
+                            <Text style={styles.title}>Оберіть місяць</Text>
+                            {months.length === 0 ? (
+                                <Text style={styles.emptyText}>Немає доступних місяців</Text>
+                            ) : months.map((m) => (
+                                <TouchableOpacity
+                                    key={m}
+                                    style={[
+                                        styles.itemButton,
+                                        selectedMonth === m && { backgroundColor: "#c4001d" },
+                                    ]}
+                                    onPress={() => setSelectedMonth(m)}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.itemText,
+                                            selectedMonth === m && { color: "#fff" },
+                                        ]}
+                                    >
+                                        {m}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </>
                     )}
 
-                    <TouchableOpacity
-                        style={styles.backCityButton}
-                        onPress={() => setSelectedType(null)}
-                    >
-                        <Text style={styles.backText}>⬅ Повернутись до вибору періоду</Text>
-                    </TouchableOpacity>
+                    {(periodType !== "specific" || selectedMonth) && (
+                        <>
+                            <Text style={styles.title}>Звіт для: {selectedObject}</Text>
+                            <Text style={styles.subtitle}>
+                                {periodType === "currentMonth"
+                                    ? "За поточний місяць"
+                                    : periodType === "all"
+                                        ? "За весь час"
+                                        : selectedMonth}
+                            </Text>
+
+                            {loading ? (
+                                <ActivityIndicator size="large" color="#c4001d" />
+                            ) : (
+                                <TouchableOpacity
+                                    style={styles.downloadButton}
+                                    onPress={() => handleExport("excel")}
+                                >
+                                    <IconButton icon="microsoft-excel" size={22} iconColor="#fff" />
+                                    <Text style={styles.buttonText}>Завантажити Excel</Text>
+                                </TouchableOpacity>
+                            )}
+                        </>
+                    )}
                 </>
             )}
         </ScrollView>
@@ -240,22 +262,9 @@ const styles = StyleSheet.create({
         backgroundColor: "#c4001d",
         borderRadius: 12,
     },
-    backCityButton: {
-        marginTop: 25,
-        paddingVertical: 14,
-        paddingHorizontal: 22,
-        alignSelf: "flex-start",
-        backgroundColor: "#c4001d",
-        borderRadius: 12,
-    },
     backText: { fontSize: 18, color: "#fff", fontWeight: "bold" },
 
-    title: {
-        fontSize: 26,
-        fontWeight: "bold",
-        marginBottom: 25,
-        color: "#c4001d",
-    },
+    title: { fontSize: 26, fontWeight: "bold", marginBottom: 25, color: "#c4001d" },
     subtitle: { fontSize: 20, marginBottom: 25, color: "#444" },
 
     itemButton: {
@@ -280,5 +289,5 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         marginBottom: 20,
     },
-    buttonText: { color: "#fff", fontSize: 18, fontWeight: "700" },
+    buttonText: { color: "#fff", fontSize: 16, fontWeight: "700", textAlign: "center" },
 });

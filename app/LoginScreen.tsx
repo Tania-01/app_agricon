@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
     View,
     Text,
@@ -8,7 +8,8 @@ import {
     TouchableOpacity,
     KeyboardAvoidingView,
     Platform,
-    ScrollView,
+    ImageBackground,
+    Animated,
 } from "react-native";
 import axios from "axios";
 import { useRouter } from "expo-router";
@@ -21,6 +22,17 @@ const LoginScreen = () => {
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
+
+    // Анімація плавної появи
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+        }).start();
+    }, []);
 
     useEffect(() => {
         const loadSavedData = async () => {
@@ -64,10 +76,8 @@ const LoginScreen = () => {
                 await AsyncStorage.removeItem("savedPassword");
             }
 
-            Alert.alert("Успіх", "Вхід виконано");
             router.push("/HomeScreen");
         } catch (err: any) {
-            console.error(err.response?.data || err.message);
             Alert.alert("Помилка", err.response?.data?.message || "Не вдалося увійти");
         } finally {
             setLoading(false);
@@ -75,134 +85,200 @@ const LoginScreen = () => {
     };
 
     return (
-        <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
+        <ImageBackground
+            source={require("../assets/images/bac.jpg")}
+            style={styles.bg}
+            resizeMode="cover"
         >
-            <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-                <Text style={styles.title}>Вхід</Text>
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
+            >
+                <View style={styles.overlay} />
 
-                <TextInput
-                    style={styles.input}
-                    placeholder="Email"
-                    placeholderTextColor="#a94442"
-                    value={email}
-                    autoCapitalize="none"
-                    onChangeText={setEmail}
-                />
-
-                <View style={styles.passwordContainer}>
-                    <TextInput
-                        style={[styles.input, { flex: 1 }]}
-                        placeholder="Пароль"
-                        placeholderTextColor="#a94442"
-                        value={password}
-                        secureTextEntry={!showPassword}
-                        onChangeText={setPassword}
-                    />
-                    <TouchableOpacity
-                        onPress={() => setShowPassword(!showPassword)}
-                        style={styles.showButton}
-                    >
-                        <Text style={styles.showButtonText}>
-                            {showPassword ? "Сховати" : "Показати"}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-
-                <TouchableOpacity
-                    style={styles.rememberContainer}
-                    onPress={() => setRememberMe(!rememberMe)}
+                <Animated.View
+                    style={[
+                        styles.centerWrapper,
+                        { opacity: fadeAnim, transform: [{ scale: fadeAnim }] },
+                    ]}
                 >
-                    <View
-                        style={[
-                            styles.checkbox,
-                            rememberMe && { backgroundColor: "#c4001d" },
-                        ]}
-                    />
-                    <Text style={styles.rememberText}>Запам’ятати мене</Text>
-                </TouchableOpacity>
+                    {/* ЛОГО-ТЕКСТ */}
+                    <Text style={styles.logoText}>AGRICON</Text>
 
-                <TouchableOpacity
-                    style={styles.button}
-                    onPress={handleLogin}
-                    disabled={loading}
-                >
-                    <Text style={styles.buttonText}>
-                        {loading ? "Завантаження..." : "Увійти"}
-                    </Text>
-                </TouchableOpacity>
-            </ScrollView>
-        </KeyboardAvoidingView>
+                    {/* ФОРМА */}
+                    <View style={styles.formWrapper}>
+                        <Text style={styles.title}>Вхід у систему</Text>
+
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Email"
+                            placeholderTextColor="#bdbdbd"
+                            value={email}
+                            autoCapitalize="none"
+                            onChangeText={setEmail}
+                        />
+
+                        <View style={styles.passwordRow}>
+                            <TextInput
+                                style={[styles.input, { flex: 1 }]}
+                                placeholder="Пароль"
+                                placeholderTextColor="#bdbdbd"
+                                secureTextEntry={!showPassword}
+                                value={password}
+                                onChangeText={setPassword}
+                            />
+                            <TouchableOpacity
+                                onPress={() => setShowPassword(!showPassword)}
+                                style={styles.showBtn}
+                            >
+                                <Text style={styles.showBtnText}>
+                                    {showPassword ? "Сховати" : "Показати"}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.rememberRow}
+                            onPress={() => setRememberMe(!rememberMe)}
+                        >
+                            <View style={styles.checkbox}>
+                                {rememberMe && <Text style={styles.checkmark}>✔</Text>}
+                            </View>
+                            <Text style={styles.rememberText}>Запам’ятати мене</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.loginBtn}
+                            onPress={handleLogin}
+                            disabled={loading}
+                        >
+                            <Text style={styles.loginBtnText}>
+                                {loading ? "Завантаження..." : "Увійти"}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </Animated.View>
+            </KeyboardAvoidingView>
+        </ImageBackground>
     );
 };
 
+export default LoginScreen;
+
 const styles = StyleSheet.create({
-    container: {
-        flexGrow: 1,
-        justifyContent: "center",
-        padding: 20,
-        backgroundColor: "#fff",
+    bg: {
+        flex: 1,
+        width: "100%",
+        height: "100%",
     },
+
+    overlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: "rgba(0,0,0,0.45)",
+    },
+
+    centerWrapper: {
+        flex: 1,
+        width: "100%",
+        justifyContent: "center",
+        alignItems: "center",
+        paddingHorizontal: 25,
+    },
+
+    logoText: {
+        fontSize: 55,
+        fontWeight: "800",
+        color: "rgba(255, 255, 255, 0.85)",
+        marginBottom: 50,
+        textAlign: "center",
+        letterSpacing: 2,
+    },
+
+    formWrapper: {
+        width: "100%",
+        backgroundColor: "rgba(255,255,255,0.92)",
+        padding: 20,
+        borderRadius: 18,
+        shadowColor: "#000",
+        shadowOpacity: 0.25,
+        shadowRadius: 12,
+        elevation: 6,
+        backdropFilter: "blur(10px)",
+    },
+
     title: {
         fontSize: 28,
-        fontWeight: "bold",
-        marginBottom: 30,
-        textAlign: "center",
+        fontWeight: "800",
         color: "#c4001d",
+        textAlign: "center",
+        marginBottom: 20,
     },
+
     input: {
-        borderWidth: 1,
+        backgroundColor: "white",
+        borderWidth: 1.5,
         borderColor: "#c4001d",
-        borderRadius: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
+        borderRadius: 10,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
         fontSize: 16,
         color: "#000",
         marginBottom: 15,
     },
-    passwordContainer: {
+
+    passwordRow: {
         flexDirection: "row",
         alignItems: "center",
-        marginBottom: 20,
     },
-    showButton: {
-        marginLeft: 10,
-        paddingHorizontal: 8,
-        paddingVertical: 10,
+
+    showBtn: {
+        paddingHorizontal: 10,
     },
-    showButtonText: {
+
+    showBtnText: {
         color: "#c4001d",
         fontWeight: "bold",
     },
-    rememberContainer: {
+
+    rememberRow: {
         flexDirection: "row",
         alignItems: "center",
-        marginBottom: 20,
+        marginBottom: 15,
     },
+
     checkbox: {
-        width: 20,
-        height: 20,
+        width: 22,
+        height: 22,
         borderWidth: 2,
         borderColor: "#c4001d",
         borderRadius: 4,
+        alignItems: "center",
+        justifyContent: "center",
         marginRight: 10,
     },
+
+    checkmark: {
+        color: "#c4001d",
+        fontWeight: "bold",
+        fontSize: 16,
+    },
+
     rememberText: {
         fontSize: 16,
         color: "#000",
     },
-    button: {
+
+    loginBtn: {
         backgroundColor: "#c4001d",
-        paddingVertical: 12,
-        borderRadius: 8,
+        paddingVertical: 14,
+        borderRadius: 10,
         alignItems: "center",
+        marginTop: 5,
     },
-    buttonText: {
-        color: "#fff",
+
+    loginBtnText: {
+        color: "white",
         fontSize: 18,
         fontWeight: "bold",
     },
 });
-
-export default LoginScreen;

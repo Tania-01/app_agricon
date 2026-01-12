@@ -20,7 +20,7 @@ export default function RootLayout() {
     }, []);
 
     if (isLoggedIn === null) {
-        return null; // можна додати спінер, поки перевіряємо
+        return null; // або спінер
     }
 
     return (
@@ -29,7 +29,7 @@ export default function RootLayout() {
                 {!isLoggedIn ? (
                     <Stack.Screen name="LoginScreen" />
                 ) : (
-                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen name="HomeScreen" />
                 )}
             </Stack>
             <StatusBar style="auto" />
